@@ -157,20 +157,54 @@ if uploaded_file:
         else:
             st.warning("La búsqueda de motivos solo está disponible para archivos FASTA.")
 
-    elif selected_tool == "Análisis estadístico":
-        st.subheader("Análisis de Correlación Estadística")
-        if data is not None:
-            st.text("Calculando estadísticas descriptivas...")
-            st.write("### Estadísticas:")
-            st.dataframe(data.describe())
-            st.write("### Ejemplo de análisis de correlación:")
-            correlation = data.corr()
-            st.write("**Matriz de correlación:**")
-            st.dataframe(correlation)
-        else:
-            st.warning("El análisis estadístico solo está disponible para archivos CSV.")
-else:
-    st.warning("Primero sube un archivo para habilitar las herramientas interactivas.")
+elif selected_tool == "Análisis estadístico":
+    st.subheader("Análisis Estadístico de Secuencias (FASTA)")
+
+    # Asegurarnos de que el archivo sea FASTA
+    if uploaded_file and uploaded_file.name.endswith(".fasta"):
+        try:
+            # Leer y procesar el archivo FASTA
+            fasta_content = uploaded_file.getvalue().decode("utf-8").splitlines()
+            sequences = {}
+            current_header = None
+
+            for line in fasta_content:
+                line = line.strip()
+                if line.startswith(">"):  # Línea de encabezado
+                    current_header = line[1:]  # Removemos ">"
+                    sequences[current_header] = ""
+                elif current_header:
+                    sequences[current_header] += line  # Concatenar la secuencia al encabezado actual
+
+            st.sidebar.success("Archivo FASTA cargado correctamente.")
+
+            # Mostrar el número de secuencias y vista previa
+            st.write(f"### Número de secuencias cargadas: {len(sequences)}")
+            st.write("### Vista previa de las secuencias (primeros 5):")
+            st.json({header: seq[:50] + "..." for header, seq in list(sequences.items())[:5]})
+
+            # Estadísticas descriptivas
+            st.write("### Estadísticas de Longitudes de Secuencia:")
+            sequence_lengths = [len(seq) for seq in sequences.values()]
+            st.write(f"- Longitud mínima: {min(sequence_lengths)}")
+            st.write(f"- Longitud máxima: {max(sequence_lengths)}")
+            st.write(f"- Longitud promedio: {np.mean(sequence_lengths):.2f}")
+
+            # Visualización: distribución de longitudes de secuencia
+            st.write("### Visualización: Distribución de Longitudes de Secuencia")
+            fig = px.histogram(
+                x=sequence_lengths,
+                nbins=20,
+                labels={'x': "Longitud de Secuencia", 'y': "Frecuencia"},
+                title="Distribución de Longitudes de Secuencia",
+                color_discrete_sequence=['lightblue']
+            )
+            st.plotly_chart(fig)
+        except Exception as e:
+            st.error(f"Error al procesar el archivo FASTA: {str(e)}")
+    else:
+        st.warning("Por favor, sube un archivo en formato FASTA para usar esta herramienta.")
+
 
 # Visualizaciones
 st.header("Visualizaciones")
