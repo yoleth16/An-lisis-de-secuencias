@@ -172,21 +172,88 @@ if uploaded_file:
 else:
     st.warning("Primero sube un archivo para habilitar las herramientas interactivas.")
 
+# Visualizaciones
 st.header("Visualizaciones")
-tab1, tab2 = st.tabs(["Frecuencia del Motivo", "Distribución de Contenido GC"])
 
-with tab1:
-    motifs = ["ATG", "TATA", "CCGG"]
-    frequencies = [25, 15, 10]
-    fig = px.bar(x=motifs, y=frequencies, labels={'x': "Motivos", 'y': "Frecuencia"},
-                 title="Frecuencia de Motivos", color_discrete_sequence=['violet'])
-    st.plotly_chart(fig)
+if uploaded_file:
+    if uploaded_file.name.endswith(".fasta"):
+        # Visualización para archivos FASTA
+        st.write("**Visualizaciones basadas en secuencias cargadas (FASTA):**")
+        tab1, tab2 = st.tabs(["Frecuencia del Motivo", "Distribución de Longitudes de Secuencia"])
 
-with tab2:
-    lengths = np.random.normal(loc=1500, scale=300, size=100)
-    fig = px.histogram(x=lengths, nbins=20, labels={'x': "Contenido GC (%)", 'y': "Frecuencia"},
-                       title="Distribución de Contenido GC", color_discrete_sequence=['lightgreen'])
-    st.plotly_chart(fig)
+        # Tab 1: Frecuencia de motivos
+        with tab1:
+            st.subheader("Frecuencia de Motivos")
+            motivos = ["ATG", "TATA", "CCGG"]  # Motivos a buscar
+            frecuencias = {motivo: 0 for motivo in motivos}
+
+            for seq in sequences.values():
+                for motivo in motivos:
+                    frecuencias[motivo] += seq.count(motivo)
+
+            # Crear gráfico de barras
+            fig = px.bar(
+                x=list(frecuencias.keys()),
+                y=list(frecuencias.values()),
+                labels={'x': "Motivos", 'y': "Frecuencia"},
+                title="Frecuencia de Motivos en las Secuencias",
+                color_discrete_sequence=['violet']
+            )
+            st.plotly_chart(fig)
+
+        # Tab 2: Distribución de longitudes
+        with tab2:
+            st.subheader("Distribución de Longitudes de Secuencia")
+            longitudes = [len(seq) for seq in sequences.values()]
+
+            # Crear histograma
+            fig = px.histogram(
+                x=longitudes,
+                nbins=20,
+                labels={'x': "Longitud de Secuencia", 'y': "Frecuencia"},
+                title="Distribución de Longitudes de Secuencia",
+                color_discrete_sequence=['lightgreen']
+            )
+            st.plotly_chart(fig)
+
+    elif uploaded_file.name.endswith(".csv"):
+        # Visualización para archivos CSV
+        st.write("**Visualizaciones basadas en datos cargados (CSV):**")
+        tab1, tab2 = st.tabs(["Distribución de Columnas", "Correlaciones entre Variables"])
+
+        # Tab 1: Distribución de columnas
+        with tab1:
+            st.subheader("Distribución de Columnas Numéricas")
+            numeric_columns = data.select_dtypes(include=['float64', 'int64']).columns
+            if len(numeric_columns) > 0:
+                selected_column = st.selectbox("Selecciona una columna para visualizar:", numeric_columns)
+                fig = px.histogram(
+                    data, 
+                    x=selected_column, 
+                    nbins=20, 
+                    labels={'x': selected_column, 'y': "Frecuencia"},
+                    title=f"Distribución de {selected_column}",
+                    color_discrete_sequence=['blue']
+                )
+                st.plotly_chart(fig)
+            else:
+                st.warning("El archivo no contiene columnas numéricas.")
+
+        # Tab 2: Correlaciones entre variables
+        with tab2:
+            st.subheader("Correlación entre Variables Numéricas")
+            if len(numeric_columns) > 1:
+                fig = px.imshow(
+                    data[numeric_columns].corr(),
+                    text_auto=True,
+                    labels={'color': "Correlación"},
+                    title="Matriz de Correlación"
+                )
+                st.plotly_chart(fig)
+            else:
+                st.warning("El archivo no tiene suficientes columnas numéricas para calcular correlaciones.")
+else:
+    st.warning("Primero sube un archivo para generar visualizaciones.")
 
 if uploaded_file and not uploaded_file.name.endswith(".fasta"):
     st.sidebar.markdown("---")
