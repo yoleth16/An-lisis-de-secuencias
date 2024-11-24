@@ -68,31 +68,109 @@ with col3:
 with col4:
     st.metric(label="📈 Correlación estadística", value="0.87", delta="0.02")
 
+# Herramientas interactivas
 st.header("Herramientas Interactivas")
-selected_tool = st.radio("Elige una herramienta para analizar tus secuencias:",
-                         options=["Alineación", "Predicción de estructuras", "Búsqueda de motivos", "Análisis estadístico"])
 
-if selected_tool == "Alineación":
-    st.subheader("Alineación de Secuencia")
-    st.text("Ejemplo: Resultado del algoritmo Needleman-Wunsch")
-    st.code("""
-    Seq1: AGCTAGC
-    Seq2: AGCTG-C
-    Puntuación de alineación: 92
-    """)
-elif selected_tool == "Predicción de estructuras":
-    st.subheader("Predicción de Estructuras Proteicas")
-    st.text("Estructura 3D prevista (Placeholder):")
-    st.image("https://via.placeholder.com/300", caption="Estructura 3D prevista")
-elif selected_tool == "Búsqueda de motivos":
-    st.subheader("Búsqueda de Motivos")
-    st.text("Buscando motivos comunes en secuencia...")
-    st.write("**Motivos encontrados:** ATG, TATA, CCGG")
-elif selected_tool == "Análisis estadístico":
-    st.subheader("Análisis de Correlación Estadística")
-    data = {"Contenido": ["Contenido GC", "Contenido AT", "Longitud de la secuencia"],
-            "Correlación con el objetivo": [0.87, -0.56, 0.45]}
-    st.table(pd.DataFrame(data))
+if uploaded_file:
+    # Determinamos el tipo de archivo cargado
+    if uploaded_file.name.endswith(".fasta"):
+        # Procesar archivo FASTA
+        fasta_content = uploaded_file.getvalue().decode("utf-8").splitlines()
+        sequences = {}
+        current_header = None
+
+        for line in fasta_content:
+            line = line.strip()
+            if line.startswith(">"):  # Encabezado de secuencia
+                current_header = line[1:]  # Removemos ">"
+                sequences[current_header] = ""
+            elif current_header:
+                sequences[current_header] += line  # Añadimos secuencia al encabezado actual
+        
+        st.sidebar.success("Archivo FASTA procesado correctamente")
+        st.write(f"### Total de secuencias cargadas: {len(sequences)}")
+        st.write("**Vista previa de secuencias:**")
+        st.json(sequences)
+
+    elif uploaded_file.name.endswith(".csv"):
+        # Procesar archivo CSV
+        try:
+            data = pd.read_csv(uploaded_file)
+            st.sidebar.success("Archivo CSV procesado correctamente")
+            st.write("### Vista previa del archivo CSV:")
+            st.dataframe(data)
+        except Exception as e:
+            st.error(f"Error al procesar el archivo CSV: {str(e)}")
+            data = None
+    else:
+        st.error("Formato de archivo no soportado.")
+        sequences = None
+        data = None
+
+    # Herramientas interactivas basadas en el contenido del archivo
+    selected_tool = st.radio(
+        "Elige una herramienta para analizar tus secuencias:",
+        options=["Alineación", "Predicción de estructuras", "Búsqueda de motivos", "Análisis estadístico"]
+    )
+
+    # Herramienta: Alineación
+    if selected_tool == "Alineación":
+        st.subheader("Alineación de Secuencia")
+        if sequences:
+            st.text("Ejemplo de alineación basada en las primeras dos secuencias cargadas:")
+            seq_headers = list(sequences.keys())
+            if len(seq_headers) >= 2:
+                seq1, seq2 = sequences[seq_headers[0]], sequences[seq_headers[1]]
+                st.code(f"""
+                Secuencia 1: {seq1}
+                Secuencia 2: {seq2}
+                Puntuación de alineación: Ejemplo: 92
+                """)
+            else:
+                st.warning("No hay suficientes secuencias para realizar una alineación.")
+        else:
+            st.warning("La alineación solo está disponible para archivos FASTA.")
+
+    elif selected_tool == "Predicción de estructuras":
+        st.subheader("Predicción de Estructuras Proteicas")
+        if sequences:
+            st.text("Ejemplo de predicción basado en la primera secuencia:")
+            first_sequence = next(iter(sequences.values()))
+            st.write(f"**Secuencia seleccionada:** {first_sequence[:50]}... (longitud: {len(first_sequence)})")
+            st.image("https://via.placeholder.com/300", caption="Estructura 3D (Placeholder)")
+        else:
+            st.warning("La predicción de estructuras solo está disponible para archivos FASTA.")
+
+    # Herramienta: Búsqueda de motivos
+    elif selected_tool == "Búsqueda de motivos":
+        st.subheader("Búsqueda de Motivos")
+        if sequences:
+            st.text("Buscando motivos comunes en las secuencias cargadas...")
+            motivos = ["ATG", "TATA", "CCGG"]  # Ejemplo de motivos
+            resultados = {motivo: 0 for motivo in motivos}
+            for seq in sequences.values():
+                for motivo in motivos:
+                    if motivo in seq:
+                        resultados[motivo] += 1
+            st.write("**Motivos encontrados:**")
+            st.table(pd.DataFrame({"Motivo": resultados.keys(), "Frecuencia": resultados.values()}))
+        else:
+            st.warning("La búsqueda de motivos solo está disponible para archivos FASTA.")
+
+    elif selected_tool == "Análisis estadístico":
+        st.subheader("Análisis de Correlación Estadística")
+        if data is not None:
+            st.text("Calculando estadísticas descriptivas...")
+            st.write("### Estadísticas:")
+            st.dataframe(data.describe())
+            st.write("### Ejemplo de análisis de correlación:")
+            correlation = data.corr()
+            st.write("**Matriz de correlación:**")
+            st.dataframe(correlation)
+        else:
+            st.warning("El análisis estadístico solo está disponible para archivos CSV.")
+else:
+    st.warning("Primero sube un archivo para habilitar las herramientas interactivas.")
 
 st.header("Visualizaciones")
 tab1, tab2 = st.tabs(["Frecuencia del Motivo", "Distribución de Contenido GC"])
